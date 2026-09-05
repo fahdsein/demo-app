@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meme Generator QA Fixture</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Local QA fixture</p>
+      <h1>Meme Generator</h1>
+      <p>Create a deterministic meme and observe its asynchronous processing state.</p>
+    </header>
+
+    <section class="panel" aria-labelledby="generator-heading">
+      <h2 id="generator-heading">Generate a meme</h2>
+      <form id="meme-form">
+        <label for="template-name">Template</label>
+        <select id="template-name" name="templateName" required>
+          <option value="cat">Cat</option>
+          <option value="pentol">Pentol</option>
+          <option value="psyduck">Psyduck</option>
+          <option value="saitama1">Saitama portrait</option>
+          <option value="saitama2">Saitama landscape</option>
+        </select>
+
+        <label for="top-text">Top text</label>
+        <input id="top-text" name="topText" type="text" maxlength="500" autocomplete="off">
+
+        <label for="bottom-text">Bottom text</label>
+        <input id="bottom-text" name="bottomText" type="text" maxlength="500" autocomplete="off">
+
+        <button id="submit-button" type="submit">Generate meme</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+    </section>
+
+    <section aria-labelledby="gallery-heading">
+      <div class="section-heading">
+        <h2 id="gallery-heading">Recent memes</h2>
+        <button id="refresh-button" class="secondary" type="button">Refresh feed</button>
+      </div>
+      <div id="gallery" class="gallery" aria-live="polite"></div>
+    </section>
+  </main>
+</body>
+</html>

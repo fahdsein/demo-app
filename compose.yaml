@@ -1,0 +1,144 @@
+name: meme-app-demo
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-meme_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-meme_password}
+      POSTGRES_DB: ${POSTGRES_DB:-memes}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/migrations/001-create-memes.sql:/docker-entrypoint-initdb.d/001-create-memes.sql:ro
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+  minio-init:
+    image: quay.io/minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_started
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-memes-bucket}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        until mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"; do sleep 2; done
+        mc mb --ignore-existing "local/$${S3_BUCKET_NAME}"
+        mc anonymous set download "local/$${S3_BUCKET_NAME}"
+    restart: "no"
+
+  web-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-meme_user}:${POSTGRES_PASSWORD:-meme_password}@postgres:5432/${POSTGRES_DB:-memes}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 4000
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "4000:4000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: .
+      dockerfile: services/worker/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-meme_user}:${POSTGRES_PASSWORD:-meme_password}@postgres:5432/${POSTGRES_DB:-memes}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_BASE_URL: ${S3_PUBLIC_BASE_URL:-http://localhost:9000}
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-memes-bucket}
+      AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:-minioadmin}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  cron:
+    build:
+      context: .
+      dockerfile: services/cron/Dockerfile
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-meme_user}:${POSTGRES_PASSWORD:-meme_password}@postgres:5432/${POSTGRES_DB:-memes}
+      DB_POOL_MAX: ${DB_POOL_MAX:-10}
+      CRON_TIMEZONE: ${CRON_TIMEZONE:-UTC}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  static-web:
+    build:
+      context: .
+      dockerfile: services/static-web/Dockerfile
+    ports:
+      - "3000:8080"
+    depends_on:
+      web-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  redis-data:
+  minio-data:

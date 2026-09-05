@@ -1,0 +1,9 @@
+packages:
+  - packages/*
+  - services/*
+
+allowBuilds:
+  msgpackr-extract: true
+
+overrides:
+  qs: ^6.16.0

@@ -1,0 +1,15 @@
+{
+  "name": "cron",
+  "version": "1.0.0",
+  "private": true,
+  "main": "cron.js",
+  "scripts": {
+    "start": "node cron.js",
+    "report:now": "node cron.js --run-once",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "node-cron": "^4.6.0"
+  }
+}

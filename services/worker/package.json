@@ -1,0 +1,15 @@
+{
+  "name": "worker",
+  "version": "1.0.0",
+  "private": true,
+  "main": "worker.js",
+  "scripts": {
+    "start": "node worker.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@app/shared": "workspace:*",
+    "@aws-sdk/client-s3": "^3.0.0",
+    "bullmq": "^5.0.0"
+  }
+}

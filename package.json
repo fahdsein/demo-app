@@ -1,0 +1,24 @@
+{
+  "name": "meme-app-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "workspaces": [
+    "packages/*",
+    "services/*"
+  ],
+  "scripts": {
+    "start:api": "pnpm --filter web-service start",
+    "start:worker": "pnpm --filter worker start",
+    "start:cron": "pnpm --filter cron start",
+    "report:now": "pnpm --filter cron report:now",
+    "validate": "node scripts/validate-repo.js",
+    "test": "pnpm -r --if-present test"
+  },
+  "devDependencies": {
+    "yaml": "^2.0.0"
+  }
+}
